@@ -1,0 +1,11 @@
+{
+  "name": "open-sesame",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @open-sesame/server --filter @open-sesame/web dev",
+    "build": "pnpm --filter @open-sesame/web build",
+    "start": "pnpm --filter @open-sesame/server start",
+    "check": "pnpm -r exec tsc --noEmit"
+  }
+}

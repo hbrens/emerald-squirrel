@@ -1,0 +1,31 @@
+{
+  "name": "@open-sesame/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../../.env src/index.ts",
+    "start": "node --env-file-if-exists=../../.env src/index.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "@napi-rs/canvas": "^1.0.8",
+    "better-sqlite3": "^12.4.1",
+    "cheerio": "^1.0.0",
+    "hono": "^4.9.0",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.8.0",
+    "pdf-lib": "^1.17.1",
+    "pdf-to-img": "^7.0.0",
+    "pdfjs-dist": "6.2.108",
+    "pino": "^9.0.0",
+    "sqlite-vec": "^0.1.7-alpha.2",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.2"
+  }
+}

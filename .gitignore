@@ -1,0 +1,7 @@
+node_modules/
+apps/server/data/
+apps/web/dist/
+gui-test-screenshots/
+*.log
+.DS_Store
+.env

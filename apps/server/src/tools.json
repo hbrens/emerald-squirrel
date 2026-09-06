@@ -1,0 +1,102 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "list_notes",
+      "description": "列出知识库全部笔记（id、title、一句话定位、更新时间），按 title 排序。需要了解库里有什么、或判断新信息是否已有归属主题时调用。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "read_note",
+      "description": "读取指定笔记的完整 markdown 内容。修改已有笔记前必须先调用本工具读旧文，禁止不读旧文直接 write_note。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "笔记 id（来自 search_notes 或 list_notes）" }
+        },
+        "required": ["id"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "search_notes",
+      "description": "全文搜索笔记标题与正文，返回命中片段（非全文）。写入新信息前必须先调用本工具查重：从用户内容里抽 1-3 个核心词作 query，不要把整句话当 query。需要全文再调 read_note。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "1-3 个核心关键词" },
+          "count": { "type": "integer", "description": "最多返回条数，默认 5", "default": 5, "minimum": 1, "maximum": 20 }
+        },
+        "required": ["query"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "write_note",
+      "description": "新建或整体重写一篇主题笔记（写入前会向用户展示 diff 并等待确认）。新建：id 传 null，title 必填（中文短句覆盖主题，如「nginx 502 排查」，不要「关于 X 的笔记」这类前缀）。更新：id 必填且必须先 read_note 读旧文，把新信息合并进旧文合适章节后提交新全文，不要只 append 到文末。仅时间流水内容不要用本工具，用 record_inbox。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": { "type": ["string", "null"], "description": "已有笔记 id；新建传 null" },
+          "title": { "type": "string", "description": "笔记标题（新建必填；更新时可同时改标题）" },
+          "content_md": { "type": "string", "description": "完整 markdown 正文（整体替换，非增量）" }
+        },
+        "required": ["id", "title", "content_md"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "delete_note",
+      "description": "删除一篇笔记（会向用户展示将删除的标题并等待确认）。典型场景：整理收件箱时删除已合并进主题笔记的 inbox 条目。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "笔记 id" }
+        },
+        "required": ["id"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "record_inbox",
+      "description": "快速记一条时间流水到收件箱（会向用户展示内容并等待确认）。仅用于「今天做了 X」「临时备忘」这类没有未来翻查需求的流水；主题性知识必须走 write_note。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "content": { "type": "string", "description": "流水内容（自动带时间戳）" }
+        },
+        "required": ["content"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "search_imports",
+      "description": "在用户上传的导入文档（只读参考资料）中做语义检索，返回相关片段与出处。导入层不可写；回答依赖上传资料的问题时调用。每个结果只有片段，没有全文。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "自然语言检索问题" },
+          "top_k": { "type": "integer", "description": "返回片段数，默认 5", "default": 5, "minimum": 1, "maximum": 10 }
+        },
+        "required": ["query"]
+      }
+    }
+  }
+]

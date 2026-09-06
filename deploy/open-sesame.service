@@ -1,0 +1,13 @@
+# ~/.config/systemd/user/open-sesame.service
+[Unit]
+Description=open-sesame chat knowledge base
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/node --env-file=/path/to/htwm-app/.env /path/to/htwm-app/apps/server/src/index.ts
+Environment=PORT=3088
+WorkingDirectory=/path/to/htwm-app/apps/server
+Restart=always
+
+[Install]
+WantedBy=default.target
