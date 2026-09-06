@@ -1,11 +1,11 @@
 {
-  "name": "open-sesame",
+  "name": "emerald-squirrel",
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "pnpm --parallel --filter @open-sesame/server --filter @open-sesame/web dev",
-    "build": "pnpm --filter @open-sesame/web build",
-    "start": "pnpm --filter @open-sesame/server start",
+    "dev": "pnpm --parallel --filter @emerald-squirrel/server --filter @emerald-squirrel/web dev",
+    "build": "pnpm --filter @emerald-squirrel/web build",
+    "start": "pnpm --filter @emerald-squirrel/server start",
     "check": "pnpm -r exec tsc --noEmit"
   }
 }

@@ -1,4 +1,4 @@
-# open-sesame
+# emerald-squirrel
 
 对话式知识库:chat 为主要交互方式,两层知识库(笔记可写 + 导入只读)。设计文档见 [`design/`](design/README.md)。
 

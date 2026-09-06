@@ -12,7 +12,7 @@ export const EMBEDDING_DIM = Number(process.env.EMBEDDING_DIM ?? 1024)
 mkdirSync(DATA_DIR, { recursive: true })
 mkdirSync(UPLOADS_DIR, { recursive: true })
 
-export const db = new Database(join(DATA_DIR, 'open-sesame.db'))
+export const db = new Database(join(DATA_DIR, 'emerald-squirrel.db'))
 db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
 

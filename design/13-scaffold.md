@@ -7,11 +7,11 @@
 ## 目录树
 
 ```
-open-sesame/
+emerald-squirrel/
 ├─ package.json                 # 根：workspace 声明 + 根脚本
 ├─ pnpm-workspace.yaml
 ├─ apps/
-│  ├─ server/                   # @open-sesame/server — Hono 后端
+│  ├─ server/                   # @emerald-squirrel/server — Hono 后端
 │  │  ├─ package.json
 │  │  ├─ tsconfig.json
 │  │  ├─ src/
@@ -27,7 +27,7 @@ open-sesame/
 │  │  │  │  └─ 001_init.sql     # 10 的全部 DDL
 │  │  │  └─ logger.ts           # pino（08 决策：结构化日志）
 │  │  └─ data/                  # SQLite + 上传原文件（.gitignore，备份对象见 08）
-│  └─ web/                      # @open-sesame/web — React 前端
+│  └─ web/                      # @emerald-squirrel/web — React 前端
 │     ├─ package.json
 │     ├─ tsconfig.json
 │     ├─ vite.config.ts
@@ -41,7 +41,7 @@ open-sesame/
 │        ├─ sse.ts              # SSE 消费 + reducer（12）
 │        └─ md.ts               # marked + DOMPurify
 └─ deploy/
-   └─ open-sesame.service       # systemd user service（形态见 08）
+   └─ emerald-squirrel.service       # systemd user service（形态见 08）
 ```
 
 ## package.json
@@ -50,13 +50,13 @@ open-sesame/
 
 ```json
 {
-  "name": "open-sesame",
+  "name": "emerald-squirrel",
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "pnpm --parallel --filter @open-sesame/server --filter @open-sesame/web dev",
-    "build": "pnpm --filter @open-sesame/web build",
-    "start": "pnpm --filter @open-sesame/server start"
+    "dev": "pnpm --parallel --filter @emerald-squirrel/server --filter @emerald-squirrel/web dev",
+    "build": "pnpm --filter @emerald-squirrel/web build",
+    "start": "pnpm --filter @emerald-squirrel/server start"
   }
 }
 ```
@@ -75,7 +75,7 @@ onlyBuiltDependencies:
 
 ```json
 {
-  "name": "@open-sesame/server",
+  "name": "@emerald-squirrel/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -102,7 +102,7 @@ server 无构建步骤：Node 24 直跑 TS（沿用 htwm-wiki 形态，`node --w
 
 ```json
 {
-  "name": "@open-sesame/web",
+  "name": "@emerald-squirrel/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -184,7 +184,7 @@ pnpm build            # 构建前端到 apps/web/dist
 pnpm start            # 生产形态：server 直跑 + 托管 dist（同 htwm-wiki index.ts 的静态资源段）
 ```
 
-生产部署、systemd unit、备份 timer 照 08 执行，service 文件放 `deploy/open-sesame.service`。
+生产部署、systemd unit、备份 timer 照 08 执行，service 文件放 `deploy/emerald-squirrel.service`。
 
 ## 建项目顺序
 

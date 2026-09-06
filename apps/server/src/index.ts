@@ -177,5 +177,5 @@ if (existsSync(distDir)) {
 }
 
 serve({ fetch: app.fetch, port: PORT }, (info) => {
-  logger.info(`open-sesame server listening on http://localhost:${info.port}`)
+  logger.info(`emerald-squirrel server listening on http://localhost:${info.port}`)
 })

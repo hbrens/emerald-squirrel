@@ -44,7 +44,7 @@ export default function App() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="wordmark">open-sesame</div>
+        <div className="wordmark">emerald-squirrel</div>
         <nav className="navtabs">
           <button
             className={`navtab ${tab === 'chat' ? 'active' : ''}`}

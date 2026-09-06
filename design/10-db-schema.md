@@ -2,7 +2,7 @@
 
 本篇给出完整 SQLite DDL、索引与 migration 策略，可直接执行。字段语义见 [02-notes-layer.md](02-notes-layer.md)（笔记）与 [03-imports-layer.md](03-imports-layer.md)（导入）。
 
-- 单库文件：`data/open-sesame.db`（笔记 + 导入 + 会话同库，01 已定）
+- 单库文件：`data/emerald-squirrel.db`（笔记 + 导入 + 会话同库，01 已定）
 - Node 侧用 `better-sqlite3`（需要 `loadExtension` 加载 sqlite-vec，见 08 已知坑）
 
 ## PRAGMA

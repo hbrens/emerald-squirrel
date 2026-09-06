@@ -1,6 +1,6 @@
-# ~/.config/systemd/user/open-sesame.service
+# ~/.config/systemd/user/emerald-squirrel.service
 [Unit]
-Description=open-sesame chat knowledge base
+Description=emerald-squirrel chat knowledge base
 After=network.target
 
 [Service]
