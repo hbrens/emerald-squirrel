@@ -14,7 +14,7 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/node --env-file=/path/to/.env src/index.ts
-Environment=PORT=3088
+Environment=PORT=61127
 WorkingDirectory=/path/to/apps/server
 Restart=always
 
@@ -34,7 +34,7 @@ WantedBy=default.target
 | `EMBEDDING_BASE_URL` | `http://127.0.0.1:11434` | Ollama |
 | `EMBEDDING_MODEL` | `nomic-embed-text` | embedding 模型 |
 | `EMBEDDING_DIM` | `768` | 向量维度 |
-| `PORT` | `3088` | 服务端口 |
+| `PORT` | `61127` | 服务端口 |
 | `DATA_DIR` | `apps/server/data` | SQLite + 上传文件目录 |
 
 ### Ollama（外部依赖）
@@ -99,7 +99,7 @@ htwm-wiki 是**零鉴权**——任何能访问 :3088 的人都能聊天 + 点�
 
 ### 缓解措施（不实施，仅记录）
 
-- 服务器防火墙只允许特定 IP 访问 :3088
+- 服务器防火墙只允许特定 IP 访问 :61127
 - 或加 nginx 反代 + basic auth
 - 或加 bearer token（参考 gptme-server）
 

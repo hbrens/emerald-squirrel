@@ -18,7 +18,7 @@ scripts/     # e2e.mjs API 端到端验证
 ```bash
 pnpm install
 pnpm rebuild better-sqlite3   # 原生模块(若安装后未编译)
-pnpm dev                      # server :3088 + vite :5173(代理 /api)
+pnpm dev                      # server :61127 + vite :5173(代理 /api)
 pnpm build                    # 构建前端 dist,server 生产模式直接托管
 pnpm start                    # 生产形态
 node scripts/e2e.mjs          # API 端到端验证(需服务已启动 + LLM 网关可用)
@@ -34,7 +34,7 @@ node scripts/e2e.mjs          # API 端到端验证(需服务已启动 + LLM 网
 
 ```bash
 cp .env.example .env            # 首次
-docker compose up -d --build    # 构建镜像并启动,监听 :3088
+docker compose up -d --build    # 构建镜像并启动,监听 :61127
 ```
 
 - 容器内 `localhost` 指向容器自身,宿主机上的 LLM 网关 / Ollama 须经 `host.docker.internal` 访问 —— compose 已自动改写这两个 URL;宿主机服务换端口时只需改 compose 的 `environment`

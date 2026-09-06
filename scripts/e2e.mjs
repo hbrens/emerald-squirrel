@@ -1,6 +1,6 @@
 // open-sesame API 层端到端验证
-// 用法: node scripts/e2e.mjs   (服务需已在 localhost:3088 运行)
-const BASE = process.env.BASE ?? 'http://localhost:3088'
+// 用法: node scripts/e2e.mjs   (服务需已在 localhost:61127 运行)
+const BASE = process.env.BASE ?? 'http://localhost:61127'
 
 let passed = 0
 let failed = 0

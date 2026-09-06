@@ -13,7 +13,7 @@ import { getNote, listInbox, listNotes, searchNotes } from './notes.ts'
 import { MIME_WHITELIST, deleteImport, getImportSummary, listImports, saveUpload } from './imports.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const PORT = Number(process.env.PORT ?? 3088)
+const PORT = Number(process.env.PORT ?? 61127)
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 runMigrations()

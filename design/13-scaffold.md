@@ -170,7 +170,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: { '/api': 'http://localhost:3088' },   // 08：PORT 默认 3088
+    proxy: { '/api': 'http://localhost:61127' },   // 08：PORT 默认 61127
   },
 })
 ```
@@ -179,7 +179,7 @@ export default defineConfig({
 
 ```bash
 pnpm install          # 首次
-pnpm dev              # 并行起 server(3088) + vite(5173，代理 /api)
+pnpm dev              # 并行起 server(61127) + vite(5173，代理 /api)
 pnpm build            # 构建前端到 apps/web/dist
 pnpm start            # 生产形态：server 直跑 + 托管 dist（同 htwm-wiki index.ts 的静态资源段）
 ```
