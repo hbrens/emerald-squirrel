@@ -1,7 +1,9 @@
 node_modules/
 apps/server/data/
+data/
 apps/web/dist/
 gui-test-screenshots/
 *.log
 .DS_Store
 .env
+es-data-backup.tar.gz

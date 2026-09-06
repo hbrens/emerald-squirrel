@@ -38,10 +38,9 @@ docker compose up -d --build    # 构建镜像并启动,监听 :3088
 ```
 
 - 容器内 `localhost` 指向容器自身,宿主机上的 LLM 网关 / Ollama 须经 `host.docker.internal` 访问 —— compose 已自动改写这两个 URL;宿主机服务换端口时只需改 compose 的 `environment`
-- 数据(DB + 上传原件)存 named volume `emerald-squirrel-data`(容器以 uid 1000 运行);想直接落宿主机目录见 compose 内注释
-- 常用:`docker compose logs -f` / `docker compose restart` / `docker compose down`(数据保留;`down -v` 连数据一起删)
-- 备份:`docker compose exec emerald-squirrel tar czf - -C /data . > es-data-backup.tar.gz`
-- 恢复:`docker compose exec -T emerald-squirrel tar xzf - -C /data < es-data-backup.tar.gz`
+- 数据(DB + 上传原件)落在项目内 `data/` 目录(已 gitignore、不进构建上下文);容器以 uid 1000 运行,若目录属主不同需 `chown 1000:1000 data`
+- 常用:`docker compose logs -f` / `docker compose restart` / `docker compose down`(数据保留在 `data/`)
+- 备份/恢复即打包 `data/` 目录:`tar czf es-data-backup.tar.gz data/` / `tar xzf es-data-backup.tar.gz`(建议服务停止时操作)
 - 自带 healthcheck(`/api/notes` 探活),`docker compose ps` 可见 healthy 状态
 
 ## 支持的导入格式

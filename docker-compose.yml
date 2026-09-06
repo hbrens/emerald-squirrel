@@ -18,9 +18,4 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:
-      - emerald-squirrel-data:/data
-      # 想把数据直接落在宿主机目录(便于 tar 备份)可改为:
-      # - ./data:/data    # 首次需:mkdir -p data && sudo chown 1000:1000 data(容器以 uid 1000 运行)
-
-volumes:
-  emerald-squirrel-data:
+      - ./data:/data # 数据(DB + 上传原件)落在项目内 data/ 目录(已 gitignore);容器以 uid 1000 运行,目录属主须为 uid 1000
