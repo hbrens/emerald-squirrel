@@ -6,7 +6,7 @@ services:
     container_name: emerald-squirrel
     restart: unless-stopped
     ports:
-      - '61127:61127' # 宿主机:容器;容器内端口由 PORT 环境变量决定,改动需两侧同步
+      - '${PORT:-61127}:${PORT:-61127}' # 宿主机:容器,两侧都取根 .env 的 PORT(compose 插值);换端口只改 .env
     env_file:
       - .env # 不存在时先 cp .env.example .env
     environment:

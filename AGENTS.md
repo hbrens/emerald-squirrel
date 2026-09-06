@@ -49,6 +49,7 @@ docker compose up -d --build
 - **静态托管靠相对路径**:`index.ts` 按 `here/../../web/dist` 找前端产物,`apps/server/src` 与 `apps/web/dist` 的目录关系不能动(镜像内同样依赖此布局)
 - **EMBEDDING_DIM 必须与建表 `FLOAT[N]` 一致**:换 embedding 模型需全量重建向量
 - **容器内网络**:`localhost` 指容器自身,宿主机 LLM 网关/Ollama 经 `host.docker.internal`(compose 已改写 `LLM_BASE_URL`/`EMBEDDING_BASE_URL`;宿主机端口变了只改 compose 的 environment)
+- **端口唯一来源是根 .env 的 PORT**:compose 端口映射(`${PORT:-61127}` 插值)、vite 代理(`loadEnv` 读根 .env)、e2e 默认地址都自动跟随;`index.ts` 与 Dockerfile healthcheck 里的 61127 仅为缺省兜底
 - **数据与属主**:容器以 uid 1000 运行,挂载 `./data:/data`;属主不符需 `chown 1000:1000 data`;备份/恢复即打包 `data/`(建议停服时)
 - **.env** 在仓库根,server 用 `--env-file-if-exists=../../.env` 读取;模板见 `.env.example`
 - 导入白名单 MIME 见 `imports.ts` 的 `MIME_WHITELIST`;上传上限 50MB;图片/扫描 PDF 走视觉模型(`IMAGE_MODEL`)

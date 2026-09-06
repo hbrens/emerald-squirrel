@@ -1,6 +1,18 @@
 // open-sesame API 层端到端验证
-// 用法: node scripts/e2e.mjs   (服务需已在 localhost:61127 运行)
-const BASE = process.env.BASE ?? 'http://localhost:61127'
+// 用法: node scripts/e2e.mjs   (服务需已启动;默认地址读仓库根 .env 的 PORT,可用 BASE 覆盖)
+import { readFileSync } from 'node:fs'
+
+function defaultBase() {
+  try {
+    const line = readFileSync(new URL('../.env', import.meta.url), 'utf8')
+      .split('\n')
+      .find((l) => l.trim().startsWith('PORT='))
+    return `http://localhost:${Number(line.split('=')[1].trim())}`
+  } catch {
+    return 'http://localhost:61127'
+  }
+}
+const BASE = process.env.BASE ?? defaultBase()
 
 let passed = 0
 let failed = 0
