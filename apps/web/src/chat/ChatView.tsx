@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { getJSON, postJSON, type HistoryMessage, type ToolCallSummary } from '../api'
+import { getJSON, postJSON, type HistoryMessage, type ModelConfig, type ToolCallSummary } from '../api'
 import { renderMd } from '../md'
 import ToolTimeline from './ToolTimeline'
 import ProposalCard, { type ProposalData } from './ProposalCard'
@@ -13,19 +13,20 @@ type Draft = {
   assistantText: string
   steps: ToolStep[]
   proposals: ProposalData[]
+  model: string | null
   notice?: string
   error?: string
   aborted?: boolean
 }
 
-type Msg = { role: 'user' | 'assistant'; content: string; toolCalls: ToolCallSummary[] }
+type Msg = { role: 'user' | 'assistant'; content: string; toolCalls: ToolCallSummary[]; model?: string | null }
 
 type State = { messages: Msg[]; draft: Draft | null; status: Status; sessionError: string | null }
 
 type Action =
   | { type: 'RESET' }
   | { type: 'LOAD'; messages: Msg[] }
-  | { type: 'TURN_START'; text: string }
+  | { type: 'TURN_START'; text: string; model: string | null }
   | { type: 'DELTA'; text: string }
   | { type: 'TOOL'; name: string; args: string }
   | { type: 'TOOL_RESULT'; preview: string }
@@ -51,7 +52,13 @@ function reducer(state: State, action: Action): State {
         ...state,
         status: 'streaming',
         sessionError: null,
-        draft: { userText: action.text, assistantText: '', steps: [], proposals: [] },
+        draft: {
+          userText: action.text,
+          assistantText: '',
+          steps: [],
+          proposals: [],
+          model: action.model,
+        },
       }
     case 'DELTA':
       if (!state.draft) return state
@@ -121,6 +128,7 @@ function reducer(state: State, action: Action): State {
         role: 'assistant',
         content: d.assistantText,
         toolCalls: d.steps.map((s) => ({ name: s.name, args: s.args, resultPreview: s.result ?? '' })),
+        model: d.model,
       })
       return { ...state, messages: msgs, draft: null, status: 'idle' }
     }
@@ -129,6 +137,9 @@ function reducer(state: State, action: Action): State {
 
 export default function ChatView(props: {
   sessionId: string | null
+  models: ModelConfig[]
+  currentModelId: string | null
+  onSelectModel: (id: string) => void
   onSessionCreated: (id: string) => void
   onTurnEnd: () => void
 }) {
@@ -161,7 +172,8 @@ export default function ChatView(props: {
       if (!trimmed) return
       const ac = new AbortController()
       abortRef.current = ac
-      dispatch({ type: 'TURN_START', text: trimmed })
+      const modelName = props.models.find((m) => m.id === props.currentModelId)?.name ?? null
+      dispatch({ type: 'TURN_START', text: trimmed, model: modelName })
       setInput('')
 
       const onEvent = (ev: Record<string, unknown>) => {
@@ -198,7 +210,11 @@ export default function ChatView(props: {
         const resp = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: internalIdRef.current, content: trimmed }),
+          body: JSON.stringify({
+            sessionId: internalIdRef.current,
+            content: trimmed,
+            modelId: props.currentModelId,
+          }),
           signal: ac.signal,
         })
         if (resp.status === 409) {
@@ -270,7 +286,23 @@ export default function ChatView(props: {
         <span className="topbar-title">
           {state.messages.length > 0 || internalIdRef.current ? '对话' : '新对话'}
         </span>
-        <span className="topbar-tag">写入需确认</span>
+        <div className="topbar-right">
+          <select
+            className="modelselect"
+            value={props.currentModelId ?? ''}
+            disabled={busy || props.models.length === 0}
+            onChange={(e) => props.onSelectModel(e.target.value)}
+            title="切换对话模型"
+          >
+            {props.models.length === 0 && <option value="">模型未配置（.env 兜底）</option>}
+            {props.models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <span className="topbar-tag">写入需确认</span>
+        </div>
       </div>
       <div className="msglist">
         {state.messages.length === 0 && !state.draft && (
@@ -290,6 +322,7 @@ export default function ChatView(props: {
               <div className="bubble">{state.draft.userText}</div>
             </div>
             <div className="msg assistant">
+              {state.draft.model && <div className="msgmodel">{state.draft.model}</div>}
               {state.draft.notice && <div className="truncated-notice">{state.draft.notice}</div>}
               <ToolTimeline steps={state.draft.steps} aborted={state.draft.aborted} />
               {state.draft.proposals.map((p) => (
@@ -345,6 +378,7 @@ function MessageItem({ m }: { m: Msg }) {
   }
   return (
     <div className="msg assistant">
+      {m.model && <div className="msgmodel">{m.model}</div>}
       {m.toolCalls.length > 0 && (
         <ToolTimeline
           steps={m.toolCalls.map((t) => ({ name: t.name, args: t.args, result: t.resultPreview }))}

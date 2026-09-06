@@ -24,8 +24,10 @@
 | HTTP | code | 含义 |
 |---|---|---|
 | 400 | `BAD_REQUEST` | 参数缺失/格式错误（message 说明具体字段） |
-| 404 | `NOT_FOUND` | 资源不存在（笔记/会话/导入文档/proposal） |
+| 400 | `MODEL_NOT_FOUND` | `/api/chat` 传了 `modelId` 但模型不存在/已被删除 |
+| 404 | `NOT_FOUND` | 资源不存在（笔记/会话/导入文档/proposal/模型） |
 | 409 | `SESSION_BUSY` | 该会话有进行中的 turn（见「多标签页 / pending 新 turn」） |
+| 409 | `NAME_CONFLICT` | 模型显示名称重复 |
 | 413 | `FILE_TOO_LARGE` | 上传超过 50 MB |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 上传格式不在白名单 |
 | 500 | `INTERNAL_ERROR` | 服务端错误（message 为人类可读描述，不含 stack trace） |
@@ -50,6 +52,11 @@
 | GET | `/api/imports` | 导入文档列表 | #3 |
 | GET | `/api/imports/:id` | 单文档详情（含 status/error） | #3 |
 | DELETE | `/api/imports/:id` | 删除文档 + chunks + 向量 | #3 |
+| GET | `/api/models` | 模型配置列表 | #4 模型设置 |
+| POST | `/api/models` | 添加模型 | #4 |
+| PUT | `/api/models/:id` | 修改模型（含 isDefault） | #4 |
+| DELETE | `/api/models/:id` | 删除模型 | #4 |
+| POST | `/api/models/test` | 测试模型连通性（最小 completion） | #4 |
 
 笔记层对**人类**只暴露读接口；写只能由 LLM 经工具 + 确认完成（需求：chat 为主要交互方式）。
 
@@ -58,10 +65,12 @@
 请求：
 
 ```json
-{ "sessionId": "abc123 或 null", "content": "记一下 nginx 502 的排查" }
+{ "sessionId": "abc123 或 null", "content": "记一下 nginx 502 的排查", "modelId": "模型配置 uuid 或 null" }
 ```
 
 - `sessionId` 为 null → 服务端新建会话
+- `modelId` 为 null/省略 → 使用默认模型；无任何模型配置 → 使用 `.env` 的 `LLM_*` 兜底（与旧版行为一致）
+- `modelId` 不存在 → 400 `MODEL_NOT_FOUND`（在创建会话前拒绝，不产生孤儿会话）
 - 响应：`Content-Type: text/event-stream`，事件协议见下节
 - `sessionId` 不存在 → 404 `NOT_FOUND`
 - 该会话已有进行中的 turn → 409 `SESSION_BUSY`（不返回 SSE）
@@ -141,14 +150,44 @@ GET  /api/sessions/:id
       { "role": "user", "content": "..." },
       { "role": "assistant", "content": "...", "toolCalls": [
           { "name": "search_notes", "args": "...", "resultPreview": "..." }
-      ]}
+      ], "model": "gpt-5.6-sol" }
     ]}
 
 DELETE /api/sessions/:id → { "ok": true }
 ```
 
 - 消息持久化含 tool_calls + 结果摘要（决策：01 架构「messages 表存 tool_calls + 结果」），会话重开可回放工具时间线（06 已定）
+- assistant 消息带 `model`（生成该消息的模型显示名快照，可空——旧数据与 `.env` 兜底轮次）
 - 首条用户消息前 24 字符自动设为 title（沿用 htwm-wiki 行为）
+
+## Models（设置页管理，仅对话 LLM）
+
+模型配置存 `model_configs` 表（10）。管理范围仅对话 LLM；embedding / 图片提取模型仍走 `.env`（换 embedding 模型需全量重建向量，不宜页面切换）。
+
+```json
+GET  /api/models
+→ [{ "id", "name", "baseUrl", "apiKey", "modelId", "isDefault", "createdAt", "updatedAt" }]
+  // 列表无鉴权，apiKey 原样返回（08 已记录局域网自用风险）；默认模型排最前
+
+POST /api/models
+  请求: { "name", "baseUrl", "apiKey 可空串", "modelId", "isDefault 可选" }
+→ 201 { ...同上 }
+  // name/baseUrl/modelId 去空格后非空；name 重复 → 409 NAME_CONFLICT
+  // 首个添加的模型自动成为默认；isDefault:true 时其余模型取消默认
+
+PUT  /api/models/:id
+  请求: 任意子集 { "name", "baseUrl", "apiKey", "modelId", "isDefault" }
+→ { ...同上 }     // 提供的字段非空才更新；isDefault:true 切换默认
+→ 404 NOT_FOUND / 409 NAME_CONFLICT
+
+DELETE /api/models/:id → { "ok": true }
+  // 删除默认模型时，最早剩余的一个自动顶上为默认
+
+POST /api/models/test
+  请求: { "baseUrl", "apiKey", "modelId" }   // 供设置页保存前验证
+→ { "ok": true, "latencyMs": 340 }
+→ { "ok": false, "error": "上游响应 401 ..." }  // 15s 超时；发一次非流式最小 completion
+```
 
 ## Notes（人类只读）
 

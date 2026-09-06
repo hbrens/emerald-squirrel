@@ -38,7 +38,7 @@ docker compose up -d --build
 
 ## 架构边界(server)
 
-- `index.ts` 路由 + SSE;`llm.ts` chat 轮次循环(OpenAI 兼容 `/chat/completions` + function calling,MAX_ROUNDS=10);`tools.ts` 工具分发 + 提案/确认;`notes.ts` 笔记层;`imports.ts` 导入管线(提取/切分/embedding);`sessions.ts` 会话;`db.ts` SQLite(WAL) + 迁移
+- `index.ts` 路由 + SSE;`llm.ts` chat 轮次循环(OpenAI 兼容 `/chat/completions` + function calling,MAX_ROUNDS=10);`tools.ts` 工具分发 + 提案/确认;`notes.ts` 笔记层;`imports.ts` 导入管线(提取/切分/embedding);`sessions.ts` 会话;`models.ts` 模型配置(设置页管理对话 LLM,`.env` 的 `LLM_*` 为未配置时兜底);`db.ts` SQLite(WAL) + 迁移
 - 迁移:`src/migrations/*.sql` 按 `NNN_` 前缀 + `user_version` 顺序执行,只增不改
 - 写入纪律:笔记写操作走两阶段(生成 proposal → 前端确认 → `/api/confirm` 执行,120s 超时);导入层对 LLM 严格只读
 - 每会话同时只允许一轮对话进行中(否则 409 SESSION_BUSY);错误统一 `{error:{code,message}}`

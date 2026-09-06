@@ -3,6 +3,7 @@ apps/server/data/
 data/
 apps/web/dist/
 gui-test-screenshots/
+.zcode/
 *.log
 .DS_Store
 .env

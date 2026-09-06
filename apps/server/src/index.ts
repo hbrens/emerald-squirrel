@@ -11,6 +11,17 @@ import { chatTurn, makeSafeEmit, resolveConfirm } from './llm.ts'
 import { createSession, deleteSession, getSession, getMessages, listSessions } from './sessions.ts'
 import { getNote, listInbox, listNotes, searchNotes } from './notes.ts'
 import { MIME_WHITELIST, deleteImport, getImportSummary, listImports, saveUpload } from './imports.ts'
+import {
+  createModel,
+  deleteModel,
+  getModel,
+  listModels,
+  nameExists,
+  resolveModel,
+  testModelConfig,
+  updateModel,
+  type ModelRow,
+} from './models.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT ?? 61127)
@@ -37,9 +48,15 @@ app.onError((err, c) => {
 const busySessions = new Set<string>()
 
 app.post('/api/chat', async (c) => {
-  const body = await c.req.json<{ sessionId?: string | null; content?: string }>().catch(() => null)
+  const body = await c.req
+    .json<{ sessionId?: string | null; content?: string; modelId?: string | null }>()
+    .catch(() => null)
   const content = body?.content?.trim()
   if (!content) return apiError(c, 400, 'BAD_REQUEST', 'content 不能为空')
+
+  // 传了 modelId 但查不到 → 直接拒绝，不产生孤儿会话；未传走默认/.env 兜底
+  const model = resolveModel(body?.modelId ?? null)
+  if (!model) return apiError(c, 400, 'MODEL_NOT_FOUND', '模型不存在或已被删除')
 
   let session = body?.sessionId ? getSession(body.sessionId) : undefined
   if (body?.sessionId && !session) return apiError(c, 404, 'NOT_FOUND', '会话不存在')
@@ -47,7 +64,7 @@ app.post('/api/chat', async (c) => {
   if (busySessions.has(session.id)) return apiError(c, 409, 'SESSION_BUSY', '该会话有进行中的对话，请稍候')
 
   busySessions.add(session.id)
-  logger.info({ sessionId: session.id }, 'chat turn start')
+  logger.info({ sessionId: session.id, model: model.name }, 'chat turn start')
 
   return streamSSE(c, async (stream) => {
     const ac = new AbortController()
@@ -59,7 +76,7 @@ app.post('/api/chat', async (c) => {
     )
     try {
       await emit('session', { sessionId: session!.id, title: session!.title })
-      await chatTurn(session!.id, content, emit, ac.signal)
+      await chatTurn(session!.id, content, model, emit, ac.signal)
       await emit('done', { sessionId: session!.id })
       logger.info({ sessionId: session!.id }, 'chat turn done')
     } catch (e) {
@@ -79,6 +96,97 @@ app.post('/api/confirm', async (c) => {
   }
   const ok = resolveConfirm(body.id, body.approve)
   return c.json({ ok })
+})
+
+// ---------- models（设置页管理，仅对话 LLM；embedding/视觉仍走 .env） ----------
+
+function toModelJson(r: ModelRow) {
+  return {
+    id: r.id,
+    name: r.name,
+    baseUrl: r.base_url,
+    apiKey: r.api_key,
+    modelId: r.model_id,
+    isDefault: Boolean(r.is_default),
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }
+}
+
+app.get('/api/models', (c) => c.json(listModels().map(toModelJson)))
+
+app.post('/api/models', async (c) => {
+  const body = await c.req
+    .json<{ name?: string; baseUrl?: string; apiKey?: string; modelId?: string; isDefault?: boolean }>()
+    .catch(() => null)
+  const name = body?.name?.trim()
+  const baseUrl = body?.baseUrl?.trim()
+  const modelId = body?.modelId?.trim()
+  if (!name || !baseUrl || !modelId) {
+    return apiError(c, 400, 'BAD_REQUEST', 'name、baseUrl、modelId 不能为空')
+  }
+  if (nameExists(name)) return apiError(c, 409, 'NAME_CONFLICT', '已存在同名模型')
+  const row = createModel({
+    name,
+    baseUrl,
+    apiKey: body?.apiKey?.trim() ?? '',
+    modelId,
+    isDefault: Boolean(body?.isDefault),
+  })
+  logger.info({ modelId: row.id, name }, 'model created')
+  return c.json(toModelJson(row), 201)
+})
+
+app.put('/api/models/:id', async (c) => {
+  const id = c.req.param('id')
+  if (!getModel(id)) return apiError(c, 404, 'NOT_FOUND', '模型不存在')
+  const body = await c.req
+    .json<{ name?: string; baseUrl?: string; apiKey?: string; modelId?: string; isDefault?: boolean }>()
+    .catch(() => null)
+  const patch: {
+    name?: string
+    baseUrl?: string
+    apiKey?: string
+    modelId?: string
+    isDefault?: boolean
+  } = {}
+  if (body?.name !== undefined) {
+    const v = body.name.trim()
+    if (!v) return apiError(c, 400, 'BAD_REQUEST', 'name 不能为空')
+    if (nameExists(v, id)) return apiError(c, 409, 'NAME_CONFLICT', '已存在同名模型')
+    patch.name = v
+  }
+  if (body?.baseUrl !== undefined) {
+    const v = body.baseUrl.trim()
+    if (!v) return apiError(c, 400, 'BAD_REQUEST', 'baseUrl 不能为空')
+    patch.baseUrl = v
+  }
+  if (body?.modelId !== undefined) {
+    const v = body.modelId.trim()
+    if (!v) return apiError(c, 400, 'BAD_REQUEST', 'modelId 不能为空')
+    patch.modelId = v
+  }
+  if (body?.apiKey !== undefined) patch.apiKey = body.apiKey.trim()
+  if (body?.isDefault !== undefined) patch.isDefault = Boolean(body.isDefault)
+  const row = updateModel(id, patch)
+  if (!row) return apiError(c, 404, 'NOT_FOUND', '模型不存在')
+  logger.info({ modelId: row.id }, 'model updated')
+  return c.json(toModelJson(row))
+})
+
+app.delete('/api/models/:id', (c) => {
+  if (!deleteModel(c.req.param('id'))) return apiError(c, 404, 'NOT_FOUND', '模型不存在')
+  return c.json({ ok: true })
+})
+
+app.post('/api/models/test', async (c) => {
+  const body = await c.req
+    .json<{ baseUrl?: string; apiKey?: string; modelId?: string }>()
+    .catch(() => null)
+  const baseUrl = body?.baseUrl?.trim()
+  const modelId = body?.modelId?.trim()
+  if (!baseUrl || !modelId) return apiError(c, 400, 'BAD_REQUEST', 'baseUrl 与 modelId 不能为空')
+  return c.json(await testModelConfig({ baseUrl, apiKey: body?.apiKey?.trim() ?? '', modelId }))
 })
 
 // ---------- sessions ----------

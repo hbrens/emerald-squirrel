@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { deleteJSON, formatBytes, getJSON, postFormData, type ImportSummary } from '../api'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 const ACCEPT = '.pdf,.docx,.xlsx,.xls,.pptx,.png,.jpg,.jpeg,.webp,.gif,.md,.txt,.html,.htm'
 
@@ -7,6 +8,7 @@ export default function ImportsView() {
   const [items, setItems] = useState<ImportSummary[]>([])
   const [dragOver, setDragOver] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<ImportSummary | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const filesRef = useRef<Map<string, File>>(new Map())
   const timersRef = useRef<Set<ReturnType<typeof setInterval>>>(new Set())
@@ -93,7 +95,6 @@ export default function ImportsView() {
 
   const remove = useCallback(
     async (id: string) => {
-      if (!window.confirm('删除该导入文档及其全部切片？')) return
       try {
         await deleteJSON(`/api/imports/${id}`)
         filesRef.current.delete(id)
@@ -167,7 +168,7 @@ export default function ImportsView() {
                     重试
                   </button>
                 )}
-                <button className="btn small danger" onClick={() => void remove(it.id)}>
+                <button className="btn small danger" onClick={() => setPendingDelete(it)}>
                   删除
                 </button>
               </td>
@@ -176,6 +177,16 @@ export default function ImportsView() {
         </tbody>
       </table>
       {items.length === 0 && <div className="empty-hint">还没有导入文档</div>}
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`删除导入文档「${pendingDelete.filename}」及其全部切片？`}
+          onConfirm={() => {
+            void remove(pendingDelete.id)
+            setPendingDelete(null)
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   )
 }

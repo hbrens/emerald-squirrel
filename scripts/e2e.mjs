@@ -45,11 +45,11 @@ function logEvent(ev) {
 }
 
 // 发起一轮对话；onProposal 收到 proposal 时回调（返回 approve 布尔），默认自动批准
-async function chat(content, { sessionId = null, onProposal, onEvent } = {}) {
+async function chat(content, { sessionId = null, modelId, onProposal, onEvent } = {}) {
   const res = await fetch(`${BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, content }),
+    body: JSON.stringify({ sessionId, content, modelId: modelId ?? null }),
   })
   if (!res.ok) throw new Error(`chat http ${res.status}: ${await res.text()}`)
   const reader = res.body.getReader()
@@ -94,6 +94,21 @@ async function chat(content, { sessionId = null, onProposal, onEvent } = {}) {
 
 const types = (events) => events.map((e) => e.type)
 const toolNames = (events) => events.filter((e) => e.type === 'tool').map((e) => e.name)
+
+// 读 .env 的 LLM_* 兜底值（建测试模型用，指向与兜底相同的网关）
+function readEnvLLM() {
+  try {
+    const lines = readFileSync(new URL('../.env', import.meta.url), 'utf8').split('\n')
+    const get = (k) => lines.find((l) => l.trim().startsWith(`${k}=`))?.split('=').slice(1).join('=').trim() ?? ''
+    return {
+      baseUrl: get('LLM_BASE_URL') || 'http://localhost:29005/v1',
+      apiKey: get('LLM_API_KEY'),
+      modelId: get('LLM_MODEL') || 'gpt-5.6-sol',
+    }
+  } catch {
+    return { baseUrl: 'http://localhost:29005/v1', apiKey: '', modelId: 'gpt-5.6-sol' }
+  }
+}
 
 async function main() {
   console.log('== 准备：服务健康检查 ==')
@@ -307,6 +322,107 @@ async function main() {
   check('PPTX 内容被检索', toolNames(r8b.events).includes('search_imports') && r8b.text.includes('192.168.3.21'), r8b.text.slice(0, 120))
   const r8c = await chat('VPN 服务器地址是什么？从导入资料里查。')
   check('图片内容被检索', toolNames(r8c.events).includes('search_imports') && (r8c.text.includes('vpn.corp.local') || r8c.text.includes('51820')), r8c.text.slice(0, 120))
+
+  console.log('== 阶段 9：模型管理（设置页 API + 按模型对话） ==')
+  const envLLM = readEnvLLM()
+  const jsonHeaders = { 'Content-Type': 'application/json' }
+  const uniqueName = `e2e-test-${Date.now()}`
+
+  // 服务端视角可达的网关地址：宿主机直跑时 .env 的 localhost 可达；容器部署时须 host.docker.internal（compose 同款改写）
+  // 用 /api/models/test 探测候选地址，取连通者用于「按模型对话」
+  const baseCandidates = [envLLM.baseUrl]
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(envLLM.baseUrl)) {
+    baseCandidates.push(envLLM.baseUrl.replace(/(localhost|127\.0\.0\.1)/, 'host.docker.internal'))
+  }
+  let workingBase = null
+  for (const url of baseCandidates) {
+    const t = await (
+      await fetch(`${BASE}/api/models/test`, {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({ baseUrl: url, apiKey: envLLM.apiKey, modelId: envLLM.modelId }),
+      })
+    )
+      .json()
+      .catch(() => ({}))
+    if (t.ok === true) {
+      workingBase = url
+      break
+    }
+  }
+  check('POST /api/models/test 连通（候选地址探测）', Boolean(workingBase), JSON.stringify(baseCandidates))
+
+  const createRes = await fetch(`${BASE}/api/models`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name: uniqueName, baseUrl: workingBase ?? envLLM.baseUrl, apiKey: envLLM.apiKey, modelId: envLLM.modelId }),
+  })
+  check('POST /api/models 201', createRes.status === 201, `got ${createRes.status}`)
+  const created = await createRes.json()
+  check('新建模型返回完整字段', Boolean(created.id && created.name && created.baseUrl && created.modelId))
+
+  const dupRes = await fetch(`${BASE}/api/models`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name: uniqueName, baseUrl: envLLM.baseUrl, modelId: envLLM.modelId }),
+  })
+  check('重名创建 409 NAME_CONFLICT', dupRes.status === 409, `got ${dupRes.status}`)
+  await dupRes.body?.cancel().catch(() => {})
+
+  const missingRes = await fetch(`${BASE}/api/models`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name: `e2e-x-${Date.now()}`, baseUrl: '', modelId: '' }),
+  })
+  check('缺字段创建 400', missingRes.status === 400, `got ${missingRes.status}`)
+  await missingRes.body?.cancel().catch(() => {})
+
+  const modelsList = await (await fetch(`${BASE}/api/models`)).json()
+  check('GET /api/models 含新模型', Array.isArray(modelsList) && modelsList.some((m) => m.id === created.id))
+
+  const badChatRes = await fetch(`${BASE}/api/chat`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ content: 'hi', modelId: 'nonexistent-model-id' }),
+  })
+  const badChatJson = await badChatRes.json().catch(() => ({}))
+  check(
+    'chat 传不存在 modelId → 400 MODEL_NOT_FOUND',
+    badChatRes.status === 400 && badChatJson.error?.code === 'MODEL_NOT_FOUND',
+    `got ${badChatRes.status}`
+  )
+
+  if (workingBase) {
+    const r9 = await chat('请只回复两个字：收到。不要调用任何工具。', { modelId: created.id })
+    check('带 modelId 对话成功', r9.text.trim().length > 0, r9.text.slice(0, 80))
+    if (r9.sessionId) {
+      const detail = await (await fetch(`${BASE}/api/sessions/${r9.sessionId}`)).json()
+      check(
+        'assistant 消息记录生成模型名',
+        detail.messages.some((m) => m.role === 'assistant' && m.model === created.name),
+        JSON.stringify(detail.messages.map((m) => ({ role: m.role, model: m.model })))
+      )
+    }
+  } else {
+    console.log('  ⚠ 网关候选地址均不可达，跳过「按模型对话」两项断言')
+  }
+
+  const putRes = await fetch(`${BASE}/api/models/${created.id}`, {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify({ isDefault: true }),
+  })
+  const putJson = await putRes.json().catch(() => ({}))
+  check('PUT 设默认后 isDefault=true', putRes.status === 200 && putJson.isDefault === true, JSON.stringify(putJson))
+
+  const delRes = await fetch(`${BASE}/api/models/${created.id}`, { method: 'DELETE' })
+  check('DELETE /api/models/:id 200', delRes.status === 200, `got ${delRes.status}`)
+  const afterDel = await (await fetch(`${BASE}/api/models`)).json()
+  check('删除后列表不含该模型', !afterDel.some((m) => m.id === created.id))
+
+  const delAgainRes = await fetch(`${BASE}/api/models/${created.id}`, { method: 'DELETE' })
+  check('重复删除 404', delAgainRes.status === 404, `got ${delAgainRes.status}`)
+  await delAgainRes.body?.cancel().catch(() => {})
 
   console.log(`\n结果: ${passed} 通过, ${failed} 失败`)
   process.exit(failed > 0 ? 1 : 0)

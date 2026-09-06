@@ -5,11 +5,8 @@ import {
   setTitleFromFirstMessage,
   type StoredToolCall,
 } from './sessions.ts'
+import type { ResolvedModel } from './models.ts'
 import { logger } from './logger.ts'
-
-export const LLM_BASE_URL = process.env.LLM_BASE_URL ?? 'http://localhost:29005/v1'
-export const LLM_MODEL = process.env.LLM_MODEL ?? 'gpt-5.6-sol'
-const LLM_API_KEY = process.env.LLM_API_KEY ?? ''
 
 const MAX_ROUNDS = 10
 const MAX_CONTEXT_MESSAGES = 30
@@ -123,16 +120,17 @@ type UpstreamToolCall = {
 
 async function callUpstream(
   messages: UpstreamMessage[],
+  model: ResolvedModel,
   emit: Emit,
   signal: AbortSignal
 ): Promise<{ content: string; toolCalls: { id: string; name: string; arguments: string }[] }> {
-  const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+  const res = await fetch(`${model.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(LLM_API_KEY ? { Authorization: `Bearer ${LLM_API_KEY}` } : {}),
+      ...(model.apiKey ? { Authorization: `Bearer ${model.apiKey}` } : {}),
     },
-    body: JSON.stringify({ model: LLM_MODEL, messages, tools: TOOLS, stream: true }),
+    body: JSON.stringify({ model: model.modelId, messages, tools: TOOLS, stream: true }),
     signal,
   })
   if (!res.ok || !res.body) {
@@ -199,6 +197,7 @@ async function callUpstream(
 export async function chatTurn(
   sessionId: string,
   content: string,
+  model: ResolvedModel,
   emit: Emit,
   signal: AbortSignal
 ): Promise<void> {
@@ -223,10 +222,10 @@ export async function chatTurn(
       await emit('truncated', { dropped })
     }
 
-    const { content: text, toolCalls } = await callUpstream(msgs, emit, signal)
+    const { content: text, toolCalls } = await callUpstream(msgs, model, emit, signal)
 
     if (toolCalls.length === 0) {
-      appendMessage(sessionId, 'assistant', text)
+      appendMessage(sessionId, 'assistant', text, undefined, model.name)
       return
     }
 
@@ -272,7 +271,7 @@ export async function chatTurn(
       logger.info({ sessionId, tool: name, approved }, 'tool executed')
     }
 
-    appendMessage(sessionId, 'assistant', text, summaries)
+    appendMessage(sessionId, 'assistant', text, summaries, model.name)
     messages.push(...toolMsgs)
   }
 

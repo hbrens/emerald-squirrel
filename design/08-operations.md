@@ -28,14 +28,16 @@ WantedBy=default.target
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `LLM_BASE_URL` | `http://127.0.0.1:29004/v1` | LLM 网关 |
-| `LLM_API_KEY` | — | LLM API key |
-| `LLM_MODEL` | `gpt-5.6-luna` | 对话模型 |
+| `LLM_BASE_URL` | `http://127.0.0.1:29004/v1` | LLM 网关（**兜底**：设置页未添加任何模型时生效；见 09 Models） |
+| `LLM_API_KEY` | — | LLM API key（同上，兜底用） |
+| `LLM_MODEL` | `gpt-5.6-luna` | 对话模型（兜底用；设置页添加模型后以页面配置为准） |
 | `EMBEDDING_BASE_URL` | `http://127.0.0.1:11434` | Ollama |
 | `EMBEDDING_MODEL` | `nomic-embed-text` | embedding 模型 |
 | `EMBEDDING_DIM` | `768` | 向量维度 |
 | `PORT` | `61127` | 服务端口 |
 | `DATA_DIR` | `apps/server/data` | SQLite + 上传文件目录 |
+
+对话 LLM 支持在设置页多模型管理（`model_configs` 表，10/09）；`LLM_*` 三个变量退化为「未配置任何模型时的兜底」，保证老部署升级后行为不变。
 
 ### Ollama（外部依赖）
 

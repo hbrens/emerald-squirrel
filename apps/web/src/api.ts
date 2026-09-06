@@ -26,6 +26,18 @@ export type HistoryMessage = {
   role: 'user' | 'assistant'
   content: string
   toolCalls: ToolCallSummary[]
+  model?: string | null
+}
+
+export type ModelConfig = {
+  id: string
+  name: string
+  baseUrl: string
+  apiKey: string
+  modelId: string
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export class ApiError extends Error {
@@ -61,6 +73,14 @@ export function getJSON<T>(url: string): Promise<T> {
 export function postJSON<T>(url: string, body: unknown): Promise<T> {
   return fetch(url, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then((r) => unwrap<T>(r))
+}
+
+export function putJSON<T>(url: string, body: unknown): Promise<T> {
+  return fetch(url, {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }).then((r) => unwrap<T>(r))

@@ -24,6 +24,7 @@ PRAGMA user_version = 1;        -- migration 版本号
 | `import_chunks_vec` | 导入层 | #3 向量索引（sqlite-vec） |
 | `sessions` | 会话层 | #2 chat 主交互 |
 | `messages` | 会话层 | #2（存 tool_calls + 结果，01 已定） |
+| `model_configs` | 配置层 | #4 模型设置（对话 LLM 多模型管理） |
 
 ## 笔记层
 
@@ -132,6 +133,7 @@ CREATE TABLE messages (
                CHECK (role IN ('user', 'assistant', 'tool')),
   content      TEXT NOT NULL DEFAULT '',
   tool_calls   TEXT,                      -- JSON：assistant 消息携带的工具调用及结果摘要
+  model        TEXT,                      -- 生成该 assistant 消息的模型显示名快照（002 起，可空）
   created_at   TEXT NOT NULL,
   UNIQUE (session_id, seq)
 );
@@ -144,13 +146,36 @@ CREATE INDEX messages_session ON messages(session_id, seq);
 - 独立 `messages` 表替代 htwm-wiki 的 JSON blob（htwm-wiki `db.ts:17` 的 `messages TEXT` 是要避开的，见 07）
 - `tool_calls` JSON 形态：`[{"name":"search_notes","args":"...","resultPreview":"..."}]`——存**摘要**而非完整 tool result（完整结果只在当轮上下文里需要，落盘为时间线回放服务，06 已定）
 - 截断按工具回合边界在应用层做（05/09），DB 永远存全量
+- `model` 只对 assistant 消息有值：存**当时**的模型显示名快照（模型改名/删除不影响历史溯源；`.env` 兜底轮次存 env 模型 id）
+
+## 配置层（模型设置）
+
+```sql
+CREATE TABLE model_configs (
+  id         TEXT PRIMARY KEY,            -- uuid
+  name       TEXT NOT NULL UNIQUE,        -- 显示名（对话页下拉 / 消息角标用它）
+  base_url   TEXT NOT NULL,               -- OpenAI 兼容网关根地址（…/v1）
+  api_key    TEXT NOT NULL DEFAULT '',    -- 空串 = 不带 Authorization
+  model_id   TEXT NOT NULL,               -- 上游 /chat/completions 的 model 参数
+  is_default INTEGER NOT NULL DEFAULT 0,  -- 至多一个；约束在应用层维护
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+```
+
+说明：
+
+- 仅管理**对话 LLM**；embedding / 视觉模型仍走 `.env`（换 embedding 需全量重建向量，10 导入层已述）
+- 「至多一个默认」由 `models.ts` 在事务内维护：设默认先清后设；删默认把最早剩余的一个顶上；首个添加自动成为默认
+- 表为空时 `/api/chat` 回落 `.env` 的 `LLM_*`（向后兼容，08）
+- API Key 明文入库：与整体无鉴权的局域网自用定位一致（08 风险已记录）
 
 ## Migration 策略
 
 - 版本号存 `PRAGMA user_version`
-- 迁移文件：`apps/server/src/migrations/001_init.sql`、`002_xxx.sql`…按序执行
+- 迁移文件：`apps/server/src/migrations/001_init.sql`、`002_models.sql`…按序执行
 - 启动时：`user_version < N` 则在**单事务**内执行缺失迁移并更新版本号
-- v1 即上文全部 DDL（`001_init.sql`）
+- v1 即上文全部 DDL（`001_init.sql`）；v2 加 `model_configs` 表与 `messages.model` 列（`002_models.sql`）
 - 向后只加不改：新列用 `ALTER TABLE ... ADD COLUMN ... DEFAULT`，不重建表
 
 ## 显式不建的表

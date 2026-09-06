@@ -17,6 +17,7 @@ export type MessageRow = {
   role: 'user' | 'assistant' | 'tool'
   content: string
   tool_calls: string | null
+  model: string | null
   created_at: string
 }
 
@@ -24,6 +25,7 @@ export type DisplayMessage = {
   role: 'user' | 'assistant'
   content: string
   toolCalls: StoredToolCall[]
+  model: string | null
 }
 
 export type SessionSummary = { id: string; title: string; updatedAt: string }
@@ -77,7 +79,8 @@ export function appendMessage(
   sessionId: string,
   role: 'user' | 'assistant' | 'tool',
   content: string,
-  toolCalls?: StoredToolCall[]
+  toolCalls?: StoredToolCall[],
+  model?: string | null
 ): void {
   const row = {
     id: randomUUID(),
@@ -86,11 +89,12 @@ export function appendMessage(
     role,
     content,
     tool_calls: toolCalls ? JSON.stringify(toolCalls) : null,
+    model: model ?? null,
     created_at: now(),
   }
   db.prepare(
-    `INSERT INTO messages (id, session_id, seq, role, content, tool_calls, created_at)
-     VALUES (@id, @session_id, @seq, @role, @content, @tool_calls, @created_at)`
+    `INSERT INTO messages (id, session_id, seq, role, content, tool_calls, model, created_at)
+     VALUES (@id, @session_id, @seq, @role, @content, @tool_calls, @model, @created_at)`
   ).run(row)
   touchSession(sessionId)
 }
@@ -106,6 +110,7 @@ export function getMessages(sessionId: string): DisplayMessage[] {
       role: r.role,
       content: r.content,
       toolCalls: r.tool_calls ? (JSON.parse(r.tool_calls) as StoredToolCall[]) : [],
+      model: r.model,
     })
   }
   return out

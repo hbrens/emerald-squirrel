@@ -8,31 +8,44 @@
 App
 ├─ Sidebar
 │  ├─ Wordmark
-│  ├─ NavTabs            （新对话 / 笔记 / 导入）
+│  ├─ NavTabs            （对话 / 笔记 / 导入 / 设置）
 │  ├─ SessionList        （今天 / 近 7 天 / 更早 分组，参考 htwm-wiki App.tsx:36 groupSessions）
 │  ├─ NoteList           （title + 一句话定位，按 title 排序）
 │  ├─ ImportList         （filename + status 徽标）
-│  └─ UserFooter
+│  └─ UserFooter         （当前模型 tag + 「写入需确认」）
 ├─ ChatView（tab=chat，主入口）
-│  ├─ TopBar             （会话标题 + 模型 tag）
+│  ├─ TopBar             （会话标题 + 模型切换下拉 + 「写入需确认」tag）
 │  ├─ MessageList
-│  │  ├─ MessageItem     （user 气泡 / assistant markdown）
+│  │  ├─ MessageItem     （user 气泡 / assistant markdown + 生成模型角标）
 │  │  ├─ ToolTimeline    （竖向 step：icon + label + 摘要，WeKnora 风）
 │  │  ├─ ProposalCard    （diff / newFile / note / delete 四种 preview + 确认/取消按钮）
 │  │  ├─ TruncatedNotice （「更早消息已省略」提示条）
 │  │  └─ ErrorBanner     （⚠ 流内错误）
 │  └─ Composer
 │     ├─ TextArea        （Enter 发送 / Shift+Enter 换行）
-│     └─ ComposerBar     （「写入需确认」tag + 模型 tag + 发送/停止按钮）
+│     └─ ComposerBar     （提示文案 + 发送/停止按钮）
 ├─ NotesView（tab=notes）
 │  ├─ NoteSearchBox      （人类用搜索，GET /api/notes/search）
 │  └─ DocView            （只读 markdown 渲染）
-└─ ImportsView（tab=imports）
-   ├─ UploadZone         （拖拽 + 点击，多文件）
-   └─ ImportTable        （filename / size / status / chunks / uploadedAt / 删除）
+├─ ImportsView（tab=imports）
+│  ├─ UploadZone         （拖拽 + 点击，多文件）
+│  └─ ImportTable        （filename / size / status / chunks / uploadedAt / 删除）
+└─ SettingsView（tab=settings）
+   ├─ ModelForm         （name / baseUrl / apiKey / modelId + 测试连接，新增与编辑共用）
+   └─ ModelList         （模型卡片：名称 + 默认徽标 + modelId/baseUrl + 设默认/编辑/删除）
 ```
 
 markdown 渲染统一走 `marked + DOMPurify` sanitize（06/08 已定，防 XSS）。
+
+破坏性操作的确认统一用共享的页内弹窗 `ui/ConfirmDialog`（App 会话删除 / ImportsView 导入删除 / SettingsView 模型删除）。**不用 `window.confirm`**：原生弹窗在 ZCode 内置浏览器等嵌入式环境不可见但仍阻塞页面 JS，表现为「卡死」。调用方持 pending 项 state，弹窗确认后才真正执行删除。
+
+## 模型选择（全局当前模型）
+
+- App 持有 `models`（`GET /api/models`）与 `currentModelId`（localStorage `htwm.modelId`），两态都经 props 下发
+- ChatView TopBar 下拉切换 → `onSelectModel` 写回 App + localStorage；所有会话共用一个当前模型（按请求传 `modelId`，不改 sessions）
+- 选择的模型被删除（或 localStorage 存了脏值）→ App 自动回退到默认模型
+- 未添加任何模型：下拉显示「模型未配置（.env 兜底）」且禁用；请求不带 `modelId`，服务端走 `.env`
+- 设置页增删改后调 `onChange`（= App 的 `refreshModels`），对话页下拉与侧栏 footer 随之刷新
 
 ## 聊天状态机
 
@@ -73,7 +86,7 @@ async function send(text: string) {
   const resp = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, content: text }),
+    body: JSON.stringify({ sessionId, content: text, modelId: currentModelId }),
     signal: ac.signal,
   })
   if (resp.status === 409) { dispatch({ type: 'BUSY' }); return }   // 见边界场景
