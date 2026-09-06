@@ -11,6 +11,8 @@ deploy/      # systemd user service
 scripts/     # e2e.mjs API 端到端验证
 ```
 
+容器化部署:`Dockerfile`(三阶段,0 处系统包安装)+ `docker-compose.yml`(推荐启动方式)+ `.dockerignore`。
+
 ## 开发
 
 ```bash
@@ -28,6 +30,20 @@ node scripts/e2e.mjs          # API 端到端验证(需服务已启动 + LLM 网
 
 默认:LLM 网关 `http://localhost:29005/v1`(gpt-5.6-sol),Ollama `qwen3-embedding:0.6b`(1024 维)。图片与扫描版 PDF 走视觉模型提取(`IMAGE_MODEL`,默认 gpt-5.6-sol)。
 
+## 容器部署(compose,推荐)
+
+```bash
+cp .env.example .env            # 首次
+docker compose up -d --build    # 构建镜像并启动,监听 :3088
+```
+
+- 容器内 `localhost` 指向容器自身,宿主机上的 LLM 网关 / Ollama 须经 `host.docker.internal` 访问 —— compose 已自动改写这两个 URL;宿主机服务换端口时只需改 compose 的 `environment`
+- 数据(DB + 上传原件)存 named volume `emerald-squirrel-data`(容器以 uid 1000 运行);想直接落宿主机目录见 compose 内注释
+- 常用:`docker compose logs -f` / `docker compose restart` / `docker compose down`(数据保留;`down -v` 连数据一起删)
+- 备份:`docker compose exec emerald-squirrel tar czf - -C /data . > es-data-backup.tar.gz`
+- 恢复:`docker compose exec -T emerald-squirrel tar xzf - -C /data < es-data-backup.tar.gz`
+- 自带 healthcheck(`/api/notes` 探活),`docker compose ps` 可见 healthy 状态
+
 ## 支持的导入格式
 
 PDF(文本型直提取;扫描版自动栅格化走视觉模型)/ DOCX / XLSX / XLS / PPTX / PNG / JPG / WEBP / GIF / MD / TXT / HTML。
@@ -35,4 +51,5 @@ PDF(文本型直提取;扫描版自动栅格化走视觉模型)/ DOCX / XLSX / X
 ## 验证状态
 
 - 服务端/前端 `tsc --noEmit` 通过,前端 `vite build` 通过
-- `scripts/e2e.mjs` 29 项断言全部通过(查重→新建/合并→diff 确认→取消→409→上传→去重→更新→语义检索→FTS5 中文检索)
+- `scripts/e2e.mjs` 40 项断言全部通过(查重→新建/合并→diff 确认→取消→409→上传→去重→更新→语义检索→FTS5 中文检索→六种格式导入)
+- compose 容器内同一套 40 项断言全部通过(经 `host.docker.internal` 打通宿主机 LLM 网关与 Ollama)
