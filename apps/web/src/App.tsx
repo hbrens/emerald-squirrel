@@ -14,7 +14,7 @@ import ConfirmDialog from './ui/ConfirmDialog'
 
 export type Tab = 'chat' | 'notes' | 'imports' | 'settings'
 
-const MODEL_STORAGE_KEY = 'htwm.modelId'
+const MODEL_STORAGE_KEY = 'emerald-squirrel.modelId'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('chat')

@@ -41,7 +41,7 @@ markdown 渲染统一走 `marked + DOMPurify` sanitize（06/08 已定，防 XSS�
 
 ## 模型选择（全局当前模型）
 
-- App 持有 `models`（`GET /api/models`）与 `currentModelId`（localStorage `htwm.modelId`），两态都经 props 下发
+- App 持有 `models`（`GET /api/models`）与 `currentModelId`（localStorage `emerald-squirrel.modelId`），两态都经 props 下发
 - ChatView TopBar 下拉切换 → `onSelectModel` 写回 App + localStorage；所有会话共用一个当前模型（按请求传 `modelId`，不改 sessions）
 - 选择的模型被删除（或 localStorage 存了脏值）→ App 自动回退到默认模型
 - 未添加任何模型：下拉显示「模型未配置（.env 兜底）」且禁用；请求不带 `modelId`，服务端走 `.env`

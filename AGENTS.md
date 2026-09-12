@@ -1,4 +1,4 @@
-# AGENTS.md · emerald-squirrel(htwm-app)
+# AGENTS.md · emerald-squirrel
 
 对话式知识库:chat 为主要交互方式,两层知识库(笔记层可写 + 导入层只读)。项目文档与注释以中文为主,代码/字段名/路径用英文。
 

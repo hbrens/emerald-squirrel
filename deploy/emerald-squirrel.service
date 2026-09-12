@@ -4,9 +4,9 @@ Description=emerald-squirrel chat knowledge base
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/node --env-file=/path/to/htwm-app/.env /path/to/htwm-app/apps/server/src/index.ts
+ExecStart=/usr/bin/node --env-file=/path/to/emerald-squirrel/.env /path/to/emerald-squirrel/apps/server/src/index.ts
 # PORT 等环境变量一律来自上方 --env-file 指向的 .env,不在此重复
-WorkingDirectory=/path/to/htwm-app/apps/server
+WorkingDirectory=/path/to/emerald-squirrel/apps/server
 Restart=always
 
 [Install]

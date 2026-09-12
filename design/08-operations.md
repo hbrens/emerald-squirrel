@@ -124,9 +124,9 @@ htwm-wiki 后端**无任何 console.log/error**，错误靠 SSE 流给前端，�
 ### journalctl 查询示例
 
 ```bash
-journalctl --user -u htwm-wiki -n 100      # 最近 100 行
-journalctl --user -u htwm-wiki -f          # 实时跟随
-journalctl --user -u htwm-wiki --since "1 hour ago"
+journalctl --user -u emerald-squirrel -n 100      # 最近 100 行
+journalctl --user -u emerald-squirrel -f          # 实时跟随
+journalctl --user -u emerald-squirrel --since "1 hour ago"
 ```
 
 ## 已知坑（从 htwm-wiki AGENTS.md 迁移 + 剔除已纠正项）
@@ -139,7 +139,7 @@ journalctl --user -u htwm-wiki --since "1 hour ago"
 
 ### 仍需注意
 
-- **前端改动后必须 `pnpm --filter @htwm/web build` 并重启服务**——浏览器可能缓存旧 index.html
+- **前端改动后必须 `pnpm --filter @emerald-squirrel/web build` 并重启服务**——浏览器可能缓存旧 index.html
 - **React.lazy 必须配 Suspense**（曾因此整树白屏）
 - **React 自动 JSX 运行时不注入 `React` 变量**，用了就要显式 import
 - **给 LLM 的话术影响测试结果**：测取消流程要用中性话术，不能说「这条不要落盘」（LLM 会拒绝调工具）
